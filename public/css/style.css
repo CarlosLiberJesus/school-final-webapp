@@ -1,0 +1,472 @@
+/* Reset básico e fontes */
+body,
+html {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  background-color: #f4f7f6;
+  color: #333;
+  line-height: 1.6;
+  height: 100%;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Estilos do Login */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh; /* Ajustar para ocupar ecrã até ter conteúdo da app */
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+#loginLogo {
+  max-width: 150px;
+  margin-bottom: 20px;
+}
+
+.login-form {
+  background-color: #fff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #555;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"] {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 1rem;
+}
+
+.login-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff; /* Azul Moodle */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.login-button:hover {
+  background-color: #0056b3;
+}
+
+.form-error {
+  color: #d9534f; /* Vermelho erro */
+  margin-bottom: 15px;
+  text-align: center;
+  min-height: 1.2em; /* Para evitar saltos de layout */
+}
+
+/* Estilos da App Principal */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Ocupar toda a altura da viewport */
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #333; /* Cor escura para o cabeçalho */
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.app-header .logo-title {
+  display: flex;
+  align-items: center;
+}
+
+#appLogo {
+  max-width: 40px; /* Logo menor no cabeçalho da app */
+  margin-right: 15px;
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+}
+
+#userFullname {
+  margin-right: 15px;
+}
+
+#logoutButton {
+  padding: 8px 15px;
+  background-color: #d9534f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#logoutButton:hover {
+  background-color: #c9302c;
+}
+
+.app-layout {
+  display: flex;
+  flex-grow: 1; /* Faz com que o main ocupe o espaço restante */
+  overflow: hidden; /* Evitar scrollbars desnecessárias no layout principal */
+}
+
+/* Sidebar */
+.sidebar {
+  width: 300px;
+  background-color: #fff;
+  padding: 10px;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  overflow-y: auto;
+}
+
+.sidebar.collapsed {
+  width: 50px; /* Largura quando colapsado */
+}
+
+.sidebar.collapsed .sidebar-accordion {
+  display: none;
+}
+
+.sidebar-toggle {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  align-self: flex-end; /* Botão à direita */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-toggle-icon {
+  width: 20px;
+  height: 3px;
+  background-color: #333;
+  position: relative;
+  transition: all 0.3s ease;
+}
+.sidebar-toggle-icon::before,
+.sidebar-toggle-icon::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 3px;
+  background-color: #333;
+  left: 0;
+  transition: all 0.3s ease;
+}
+.sidebar-toggle-icon::before {
+  top: -6px;
+}
+.sidebar-toggle-icon::after {
+  top: 6px;
+}
+
+.sidebar.collapsed .sidebar-toggle-icon {
+  transform: rotate(90deg);
+}
+
+/* Accordion */
+.sidebar-accordion .accordion-item {
+  margin-bottom: 5px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.accordion-header {
+  background-color: #f9f9f9;
+  padding: 10px 15px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+.accordion-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.accordion-icon {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid #333;
+  border-bottom: 2px solid #333;
+  transform: rotate(45deg);
+  transition: transform 0.3s ease;
+}
+.accordion-item.active .accordion-icon {
+  transform: rotate(-135deg);
+}
+
+.accordion-content {
+  padding: 10px 15px;
+  display: none; /* Escondido por padrão */
+  border-top: 1px solid #e0e0e0;
+  max-height: 300px; /* Altura máxima para conteúdo do acordeão */
+  overflow-y: auto; /* Scroll se necessário */
+}
+.accordion-content.show {
+  display: block;
+}
+
+.course-item {
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border: 1px solid transparent;
+}
+.course-item:hover {
+  background-color: #e9ecef;
+}
+.course-item.selected {
+  background-color: #007bff;
+  color: white;
+  border-color: #0056b3;
+}
+
+.placeholder-text {
+  color: #777;
+  font-style: italic;
+}
+
+.selected-course-title {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+}
+
+.course-contents-display .section-title {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 5px;
+  color: #0056b3;
+}
+.course-contents-display ul {
+  list-style-type: none;
+  padding-left: 10px;
+}
+.course-contents-display .module-item {
+  padding: 3px 0;
+  font-size: 0.9em;
+}
+.module-type-label {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 0.75em;
+  margin-right: 8px;
+  border-radius: 3px;
+  color: #fff;
+  min-width: 70px; /* Largura mínima para alinhar */
+  text-align: center;
+}
+.type-quiz {
+  background-color: #f0ad4e;
+} /* Laranja */
+.type-folder {
+  background-color: #5bc0de;
+} /* Azul claro */
+.type-url {
+  background-color: #5cb85c;
+} /* Verde */
+.type-resource {
+  background-color: #337ab7;
+} /* Azul escuro */
+.type-book {
+  background-color: #777;
+} /* Cinza */
+.type-page {
+  background-color: #d9534f;
+} /* Vermelho */
+.type-assign {
+  background-color: purple;
+  color: white;
+} /* Roxo */
+.type-forum {
+  background-color: #29abe0;
+} /* Azul Twitter */
+.type-default {
+  background-color: #999;
+}
+
+/* Chat Area */
+.chat-area {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  background-color: #e9ecef;
+  overflow: hidden; /* Para controlar o scroll do painel de mensagens */
+}
+.chat-area h2 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+  color: #333;
+  text-align: center;
+}
+
+.chat-messages-panel {
+  flex-grow: 1;
+  overflow-y: auto;
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 15px;
+}
+
+.message {
+  padding: 10px 15px;
+  margin-bottom: 10px;
+  border-radius: 15px;
+  max-width: 80%;
+  word-wrap: break-word;
+}
+.user-message {
+  background-color: #007bff;
+  color: white;
+  margin-left: auto;
+  border-bottom-right-radius: 5px;
+}
+.bot-message {
+  background-color: #f1f1f1;
+  color: #333;
+  margin-right: auto;
+  border-bottom-left-radius: 5px;
+}
+.bot-message strong {
+  color: #0056b3;
+}
+.bot-message pre {
+  background-color: #e9ecef;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.9em;
+}
+.bot-message code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier,
+    monospace;
+}
+
+.chat-input-area {
+  display: flex;
+}
+.chat-input-area textarea {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-right: 10px;
+  resize: none; /* Desabilitar redimensionamento manual */
+  min-height: 40px; /* Altura mínima */
+  font-size: 1rem;
+}
+.chat-input-area button {
+  padding: 10px 20px;
+  background-color: #28a745; /* Verde */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.chat-input-area button:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3; /* Light grey */
+  border-top: 4px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsividade (básica) */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    max-height: 40vh; /* Limitar altura em ecrãs pequenos */
+  }
+  .sidebar.collapsed {
+    width: 100%;
+    max-height: 50px; /* Altura do botão de toggle */
+  }
+  .chat-area {
+    height: 60vh; /* Ocupar o resto */
+  }
+}
