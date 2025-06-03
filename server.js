@@ -8,9 +8,10 @@ import session from "express-session";
 import { authenticateUser } from "./src/auth-client.js";
 import { getUserCourses, getCourseContents } from "./src/moodle-client.js";
 
-// Presumindo que estes ficheiros existem e exportam as funções:
-// import { askGemini } from './src/gemini-client.js';
-// import { addToHistory, formatHistoryForLLM } from './src/conversation-history.js';
+import {
+  getChatHistoryForAgent,
+  addToHistory,
+} from "./src/conversation-history.js";
 
 // --- Configuração Inicial ---
 const __filename = fileURLToPath(import.meta.url);
@@ -150,10 +151,6 @@ app.get("/api/course-summary/:courseid", requireAuth, async (req, res) => {
 // Por agora, vou manter a estrutura que tinha, assumindo que `askGemini` e `addToHistory`
 // são placeholders ou partes da sua interação com o Agente.
 
-// Simple in-memory cache for course contexts (para não reformatar a cada pergunta)
-const courseContextCache = new Map();
-const CACHE_EXPIRATION_MS = 15 * 60 * 1000; // Cache de 15 minutos
-
 // A sua função `formatCourseContentsForLLM` é muito boa, mantenho-a como está.
 // Só vou referenciá-la aqui.
 function formatCourseContentsForLLM(courseName, sections) {
@@ -177,18 +174,6 @@ function formatCourseContentsForLLM(courseName, sections) {
   });
   return output;
 }
-// Função placeholder para formatHistoryForLLM
-async function formatHistoryForLLM(courseId) {
-  return ""; /* TODO: Implementar ou usar a sua */
-}
-// Função placeholder para askGemini
-async function askGemini(prompt) {
-  return "Resposta do assistente (simulada)."; /* TODO: Implementar ou usar a sua */
-}
-// Função placeholder para addToHistory
-async function addToHistory(courseId, question, answer) {
-  /* TODO: Implementar ou usar a sua */
-}
 
 app.post("/api/agent/chat", requireAuth, async (req, res) => {
   const { question, courseId, courseName } = req.body;
@@ -200,61 +185,53 @@ app.post("/api/agent/chat", requireAuth, async (req, res) => {
     });
   }
 
+  const userToken = req.session.userToken;
+  if (!userToken) {
+    return res.status(400).json({
+      error: "Não estamos a preparar o Token do Moodle.",
+    });
+  }
+
+  const userId = req.session.user.id;
+  if (!userId) {
+    return res.status(400).json({
+      error: "Não estamos a preparar o userId do Moodle.",
+    });
+  }
+
+  const chat_history = await getChatHistoryForAgent(userId, courseId);
+
   console.log(
-    `[Agent Chat] Recebida pergunta sobre "${courseName}" (ID: ${courseId}): "${question}"`
+    `[Agent Chat] Recebida pergunta sobre "${courseName}" (ID: ${courseId}): "${question}" e histórico "${chat_history}"`
   );
 
   try {
-    let moodleContextText;
-    const cachedEntry = courseContextCache.get(courseId);
+    const agentInput = {
+      input: question, // A pergunta do utilizador
+      chat_history: chat_history,
+      moodle_course_id: courseId, // Opcional, pode ser inferido ou pedido pelo agente
+      moodle_user_token: userToken, // ESSENCIAL para chamadas personalizadas ao Moodle
+    };
 
-    if (
-      cachedEntry &&
-      Date.now() - cachedEntry.timestamp < CACHE_EXPIRATION_MS
-    ) {
-      console.log(
-        `[Agent Chat] Usando contexto da disciplina ${courseId} do cache.`
-      );
-      moodleContextText = cachedEntry.context;
-    } else {
-      console.log(
-        `[Agent Chat] Cache para disciplina ${courseId} não encontrado ou expirado. A buscar e formatar...`
-      );
-      const courseContentsData = await getCourseContents(courseId); // Função do moodle-client
-      moodleContextText = formatCourseContentsForLLM(
-        courseName,
-        courseContentsData
-      ); // Sua função de formatação
-      courseContextCache.set(courseId, {
-        context: moodleContextText,
-        timestamp: Date.now(),
-      });
-    }
+    // 3. Chamar o seu Agente (que está a correr como um serviço HTTP)
+    // Supondo que o seu agente LangChain está a correr noutra porta/serviço
+    // e tem um endpoint como http://localhost:AGENT_PORT/invoke
+    console.log(`[WebApp] A enviar pedido para o Agente LangChain...`);
 
-    const conversationHistoryText = await formatHistoryForLLM(courseId); // Sua função de histórico
+    // const agentServiceUrl = "http://localhost:3001/invoke-agent"; // Exemplo de URL do serviço do agente
+    // const agentResponse = await axios.post(agentServiceUrl, agentInput);
+    // const agentAnswer = agentResponse.data.output; // Ou a estrutura que o seu agente retornar
 
-    const promptForAgent = `
-            Você é um assistente educacional especialista no Moodle.
-            Contexto do Moodle para o curso "${courseName}":
-            ---
-            ${moodleContextText}
-            ---
-            ${conversationHistoryText}
-            Pergunta: ${question}
+    // **PARA AGORA, SE O AGENTE ESTIVER NO MESMO PROCESSO NODE.JS (como no seu index.js):**
+    const module = await import(
+      "file:///E:/MCPs/school-moodle-langchain/build/src/index.js"
+    );
+    const { invokeAgent } = module;
+    const agentResult = await invokeAgent(agentInput); // Esta função interna chamaria agentExecutor.invoke
+    const agentAnswer = agentResult.output;
 
-            Instruções:
-            - Responda à pergunta baseando-se no contexto do Moodle fornecido.
-            - Se a informação não estiver no contexto, informe que não tem acesso a esses detalhes.
-            - Formate sua resposta usando Markdown.
-        `;
-
-    // Esta é a chamada que iria para o seu AGENTE.
-    // O Agente então usaria as suas tools, contactaria o MCP server, etc.
-    // Por agora, usamos a sua função `askGemini` como um placeholder.
-    console.log(`[Agent Chat] A enviar prompt para o Agente/LLM...`);
-    const agentAnswer = await askGemini(promptForAgent); // Sua função de chamada à LLM/Agente
-
-    await addToHistory(courseId, question, agentAnswer); // Sua função de histórico
+    // TODO: (não esquecer o getChatHistoryForAgent(...)) Deveria actualizar para ter o nível req.user.id
+    await addToHistory(userId, courseId, question, agentAnswer); // Sua função de histórico
 
     res.json({ answer: agentAnswer });
   } catch (error) {
