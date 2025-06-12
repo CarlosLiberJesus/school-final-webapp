@@ -10,9 +10,13 @@ const httpsAgent = new https.Agent({
 });
 
 // Função genérica para chamadas à API Moodle
-async function moodleAPIRequest(wsfunction, extraParams = {}) {
+async function moodleAPIRequest(wsfunction, extraParams = {}, token) {
+  if (!token) {
+    throw new Error(`Terá de usar o token do utilizador pós login!`);
+  }
+
   const params = new URLSearchParams({
-    wstoken: MOODLE_ADMIN_TOKEN, // Usar token administrativo para estas operações
+    wstoken: token,
     wsfunction: wsfunction,
     moodlewsrestformat: "json",
     ...extraParams,
@@ -64,29 +68,20 @@ async function moodleAPIRequest(wsfunction, extraParams = {}) {
 }
 
 // Função para obter informações do site Moodle
-async function getMoodleSiteInfo() {
-  return moodleAPIRequest("core_webservice_get_site_info");
-}
-
-// Função para obter TODOS os cursos (geralmente usado por admin)
-async function getAllCourses() {
-  const data = await moodleAPIRequest("core_course_get_courses");
-  if (!Array.isArray(data)) {
-    console.error(
-      "Resposta de core_course_get_courses não foi um array:",
-      data
-    );
-    throw new Error("Resposta inesperada do Moodle ao buscar todos os cursos.");
-  }
-  return data;
+async function getMoodleSiteInfo(token) {
+  return moodleAPIRequest("core_webservice_get_site_info", {}, token);
 }
 
 // Função para obter cursos específicos do usuário
-async function getUserCourses(userId) {
+async function getUserCourses(userId, token) {
   console.log(`A obter cursos para o utilizador ID: ${userId}`);
-  const data = await moodleAPIRequest("core_enrol_get_users_courses", {
-    userid: userId,
-  });
+  const data = await moodleAPIRequest(
+    "core_enrol_get_users_courses",
+    {
+      userid: userId,
+    },
+    token
+  );
   if (!Array.isArray(data)) {
     console.warn(
       "Resposta de core_enrol_get_users_courses não foi um array para o utilizador:",
@@ -103,11 +98,15 @@ async function getUserCourses(userId) {
 }
 
 // Função para obter conteúdo de um curso
-async function getCourseContents(courseId) {
+async function getCourseContents(courseId, token) {
   console.log(`Obtendo conteúdo do curso ID: ${courseId}`);
-  const data = await moodleAPIRequest("core_course_get_contents", {
-    courseid: courseId,
-  });
+  const data = await moodleAPIRequest(
+    "core_course_get_contents",
+    {
+      courseid: courseId,
+    },
+    token
+  );
 
   if (!Array.isArray(data)) {
     console.error("Resposta de core_course_get_contents não é um array:", data);
@@ -125,10 +124,26 @@ async function getCourseContents(courseId) {
   }));
 }
 
+/**
+ * @deprecated é por utilizador que trás as suas, não admin
+ * Função para obter TODOS os cursos (geralmente usado por admin)
+async function getAllCourses(token) {
+  const data = await moodleAPIRequest("core_course_get_courses", {}, token);
+  if (!Array.isArray(data)) {
+    console.error(
+      "Resposta de core_course_get_courses não foi um array:",
+      data
+    );
+    throw new Error("Resposta inesperada do Moodle ao buscar todos os cursos.");
+  }
+  return data;
+}
+*/
+
 export {
   getMoodleSiteInfo,
   getCourseContents,
-  getAllCourses,
+  //  getAllCourses,
   getUserCourses,
   moodleAPIRequest,
 };

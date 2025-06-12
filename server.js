@@ -20,6 +20,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+export const MOODLE_AGENT = process.env.MOODLE_AGENT;
+if (!MOODLE_AGENT) {
+  console.error("Path para agente, MOODLE_AGENT não definido em .env");
+}
+
 // --- Middleware ---
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
@@ -111,7 +116,8 @@ app.get("/api/session-status", (req, res) => {
 app.get("/api/my-courses", requireAuth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const courses = await getUserCourses(userId);
+    const userToken = req.session.userToken;
+    const courses = await getUserCourses(userId, userToken);
     res.json(courses);
   } catch (error) {
     console.error(
@@ -127,11 +133,12 @@ app.get("/api/my-courses", requireAuth, async (req, res) => {
 app.get("/api/course-summary/:courseid", requireAuth, async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseid, 10);
+    const userToken = req.session.userToken;
     if (isNaN(courseId)) {
       return res.status(400).json({ error: "ID da disciplina inválido." });
     }
     // Aqui, vamos obter o conteúdo completo, o frontend pode decidir como resumir a "estrutura"
-    const contents = await getCourseContents(courseId);
+    const contents = await getCourseContents(courseId, userToken);
     res.json(contents);
   } catch (error) {
     console.error(
@@ -143,13 +150,6 @@ app.get("/api/course-summary/:courseid", requireAuth, async (req, res) => {
       .json({ error: "Falha ao carregar o conteúdo da disciplina." });
   }
 });
-
-// --- Rota do Chat com o Agente (Protegida) ---
-// A sua lógica de /ask-about-course é um bom ponto de partida.
-// Esta rota será o PONTO DE CONTACTO da WebApp com o seu "Agente".
-// O Agente, por sua vez, contactará o "MCP Server" etc.
-// Por agora, vou manter a estrutura que tinha, assumindo que `askGemini` e `addToHistory`
-// são placeholders ou partes da sua interação com o Agente.
 
 // A sua função `formatCourseContentsForLLM` é muito boa, mantenho-a como está.
 // Só vou referenciá-la aqui.
@@ -223,14 +223,11 @@ app.post("/api/agent/chat", requireAuth, async (req, res) => {
     // const agentAnswer = agentResponse.data.output; // Ou a estrutura que o seu agente retornar
 
     // **PARA AGORA, SE O AGENTE ESTIVER NO MESMO PROCESSO NODE.JS (como no seu index.js):**
-    const module = await import(
-      "file:///E:/MCPs/school-moodle-langchain/build/src/index.js"
-    );
+    const module = await import(MOODLE_AGENT);
     const { invokeAgent } = module;
     const agentResult = await invokeAgent(agentInput); // Esta função interna chamaria agentExecutor.invoke
     const agentAnswer = agentResult.output;
 
-    // TODO: (não esquecer o getChatHistoryForAgent(...)) Deveria actualizar para ter o nível req.user.id
     await addToHistory(userId, courseId, question, agentAnswer); // Sua função de histórico
 
     res.json({ answer: agentAnswer });
