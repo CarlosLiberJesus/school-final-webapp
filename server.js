@@ -3,6 +3,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import session from "express-session";
+import axios from "axios"; // Adicionado Axios
 
 // Clientes Moodle e Autenticação
 import { authenticateUser } from "./src/auth-client.js";
@@ -20,10 +21,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-export const MOODLE_AGENT = process.env.MOODLE_AGENT;
-if (!MOODLE_AGENT) {
-  console.error("Path para agente, MOODLE_AGENT não definido em .env");
-}
+// URL do serviço do agente LangChain
+const LANGCHAIN_AGENT_URL =
+  process.env.LANGCHAIN_AGENT_URL || "http://localhost:3010/invoke";
 
 // --- Middleware ---
 app.use(express.json());
@@ -63,16 +63,15 @@ app.post("/api/login", async (req, res) => {
 
     const authResult = await authenticateUser(username, password);
 
-    // Armazenar informações do utilizador e token do Moodle na sessão
-    req.session.user = authResult.user; // Contém id, username, fullname
-    req.session.userToken = authResult.token; // Token Moodle específico do utilizador
+    req.session.user = authResult.user;
+    req.session.userToken = authResult.token;
 
     console.log(
       `Utilizador ${authResult.user.username} (ID: ${authResult.user.id}) autenticado com sucesso.`
     );
     res.json({
       success: true,
-      user: authResult.user, // Enviar dados do utilizador para o frontend
+      user: authResult.user,
     });
   } catch (error) {
     console.error("Erro no endpoint /api/login:", error.message);
@@ -95,7 +94,7 @@ app.post("/api/logout", (req, res) => {
           .json({ error: "Não foi possível terminar a sessão." });
       }
       console.log(`Sessão terminada para o utilizador ${username}.`);
-      res.clearCookie("connect.sid"); // Nome padrão do cookie de sessão
+      res.clearCookie("connect.sid");
       res.json({ success: true, message: "Sessão terminada com sucesso." });
     });
   } else {
@@ -103,7 +102,6 @@ app.post("/api/logout", (req, res) => {
   }
 });
 
-// Rota para verificar o estado da sessão (útil no carregamento da página)
 app.get("/api/session-status", (req, res) => {
   if (req.session && req.session.user) {
     res.json({ loggedIn: true, user: req.session.user });
@@ -137,7 +135,6 @@ app.get("/api/course-summary/:courseid", requireAuth, async (req, res) => {
     if (isNaN(courseId)) {
       return res.status(400).json({ error: "ID da disciplina inválido." });
     }
-    // Aqui, vamos obter o conteúdo completo, o frontend pode decidir como resumir a "estrutura"
     const contents = await getCourseContents(courseId, userToken);
     res.json(contents);
   } catch (error) {
@@ -151,30 +148,6 @@ app.get("/api/course-summary/:courseid", requireAuth, async (req, res) => {
   }
 });
 
-// A sua função `formatCourseContentsForLLM` é muito boa, mantenho-a como está.
-// Só vou referenciá-la aqui.
-function formatCourseContentsForLLM(courseName, sections) {
-  // (O seu código original de formatCourseContentsForLLM aqui...)
-  // ... (copie a sua função de server.js original para aqui)
-  // Exemplo simplificado para garantir que o server.js corre sem o seu código completo:
-  if (!sections || sections.length === 0) {
-    return `O curso "${courseName}" não parece ter conteúdos.`;
-  }
-  let output = `Conteúdo do Curso: "${courseName}"\n`;
-  sections.forEach((section) => {
-    output += `Secção: ${section.name}\n`;
-    if (section.modules && section.modules.length > 0) {
-      section.modules.forEach((module) => {
-        output += `  - Módulo: ${module.name} (Tipo: ${module.modname})\n`;
-      });
-    } else {
-      output += "  (Sem módulos nesta secção)\n";
-    }
-    output += "\n";
-  });
-  return output;
-}
-
 app.post("/api/agent/chat", requireAuth, async (req, res) => {
   const { question, courseId, courseName } = req.body;
 
@@ -187,56 +160,79 @@ app.post("/api/agent/chat", requireAuth, async (req, res) => {
 
   const userToken = req.session.userToken;
   if (!userToken) {
-    return res.status(400).json({
-      error: "Não estamos a preparar o Token do Moodle.",
+    // Esta verificação já é feita pelo requireAuth, mas mantida por segurança adicional
+    return res.status(401).json({
+      error: "Token de utilizador não encontrado. Por favor, faça login novamente.",
     });
   }
 
   const userId = req.session.user.id;
   if (!userId) {
-    return res.status(400).json({
-      error: "Não estamos a preparar o userId do Moodle.",
+     // Esta verificação já é feita pelo requireAuth, mas mantida por segurança adicional
+    return res.status(401).json({
+      error: "ID de utilizador não encontrado. Por favor, faça login novamente.",
     });
   }
 
-  const chat_history = await getChatHistoryForAgent(userId, courseId);
-
-  console.log(
-    `[Agent Chat] Recebida pergunta sobre "${courseName}" (ID: ${courseId}): "${question}" e histórico "${chat_history}"`
-  );
-
   try {
+    const chat_history = await getChatHistoryForAgent(userId, courseId);
+
+    console.log(
+      `[WebApp] Pergunta sobre "${courseName}" (ID: ${courseId}): "${question}"`
+    );
+    // console.log("[WebApp] Histórico para o agente:", JSON.stringify(chat_history, null, 2)); // Descomentar para debug detalhado do histórico
+
     const agentInput = {
-      input: question, // A pergunta do utilizador
-      chat_history: chat_history,
-      moodle_course_id: courseId, // Opcional, pode ser inferido ou pedido pelo agente
-      moodle_user_token: userToken, // ESSENCIAL para chamadas personalizadas ao Moodle
+      input: question,
+      moodle_user_token: userToken,
+      moodle_course_id: Number(courseId), // Garantir que é número
+      chat_history: chat_history || [],
     };
 
-    // 3. Chamar o seu Agente (que está a correr como um serviço HTTP)
-    // Supondo que o seu agente LangChain está a correr noutra porta/serviço
-    // e tem um endpoint como http://localhost:AGENT_PORT/invoke
-    console.log(`[WebApp] A enviar pedido para o Agente LangChain...`);
+    console.log(
+      `[WebApp] A enviar pedido para o Agente LangChain em ${LANGCHAIN_AGENT_URL}`
+    );
 
-    // const agentServiceUrl = "http://localhost:3001/invoke-agent"; // Exemplo de URL do serviço do agente
-    // const agentResponse = await axios.post(agentServiceUrl, agentInput);
-    // const agentAnswer = agentResponse.data.output; // Ou a estrutura que o seu agente retornar
+    const agentResponse = await axios.post(LANGCHAIN_AGENT_URL, agentInput, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 60000, // Timeout de 60 segundos
+    });
 
-    // **PARA AGORA, SE O AGENTE ESTIVER NO MESMO PROCESSO NODE.JS (como no seu index.js):**
-    const module = await import(MOODLE_AGENT);
-    const { invokeAgent } = module;
-    const agentResult = await invokeAgent(agentInput); // Esta função interna chamaria agentExecutor.invoke
-    const agentAnswer = agentResult.output;
+    // A API do agente LangChain especificada retorna um JSON com a resposta.
+    // Ex: { "output": "Resposta do agente", "outros_dados": ... }
+    // Ou pode ser diretamente a string de output, dependendo da configuração do servidor do agente.
+    // Vou assumir que a resposta está em agentResponse.data.output conforme o exemplo na descrição.
+    const agentAnswer = agentResponse.data.output;
 
-    await addToHistory(userId, courseId, question, agentAnswer); // Sua função de histórico
+    if (typeof agentAnswer === "undefined") {
+        console.error("[WebApp] Resposta do agente não continha a propriedade 'output'. Resposta completa:", agentResponse.data);
+        throw new Error("Formato de resposta inesperado do serviço do agente.");
+    }
+
+    await addToHistory(userId, courseId, question, agentAnswer);
 
     res.json({ answer: agentAnswer });
   } catch (error) {
-    console.error("[Agent Chat] Erro detalhado:", error);
-    // A sua gestão de erros para o Gemini era boa, pode adaptá-la aqui.
-    res.status(500).json({
-      error: "Ocorreu um erro ao processar a sua pergunta com o assistente.",
-    });
+    console.error("[WebApp] Erro ao comunicar com o Agente LangChain ou ao processar a resposta:", error);
+    let errorMessage = "Ocorreu um erro ao processar a sua pergunta com o assistente.";
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        // O servidor do agente respondeu com um status de erro
+        console.error("[WebApp] Erro do servidor do agente:", error.response.status, error.response.data);
+        errorMessage = `Erro do serviço do agente: ${error.response.status} - ${error.response.data.error || error.message}`;
+      } else if (error.request) {
+        // A requisição foi feita mas não houve resposta (ex: timeout, serviço offline)
+        console.error("[WebApp] Nenhuma resposta do servidor do agente:", error.request);
+        errorMessage = "O serviço do assistente não está a responder. Tente mais tarde.";
+      } else {
+        // Erro ao configurar a requisição
+        console.error("[WebApp] Erro de configuração da requisição Axios:", error.message);
+        errorMessage = `Erro ao preparar comunicação com o assistente: ${error.message}`;
+      }
+    } else if (error instanceof Error) {
+        errorMessage = error.message; // Usa a mensagem do erro específico se for um erro conhecido
+    }
+    res.status(500).json({ error: errorMessage });
   }
 });
 
@@ -253,4 +249,5 @@ app.listen(PORT, () => {
       "AVISO: rejectUnauthorized está provavelmente desativado para HTTPS em ambiente de não produção."
     );
   }
+  console.log(`Agente LangChain esperado em: ${LANGCHAIN_AGENT_URL}`);
 });
