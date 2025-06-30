@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "concurrently \"npm run mcp-server\" \"npm run agent\" \"npm run webapp\"",
+    "mcp-server": "cd E:/MCPs/school-moodle-mcp && set PORT=3001 && node build/src/index.js",
+    "agent": "cd E:/MCPs/school-moodle-mcp && set PORT=3010 && node build/src/index.js",
+    "webapp": "node server.js --port=3100"
   },
   "dependencies": {
     "@langchain/core": "^0.3.57",
@@ -23,6 +26,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
+    "concurrently": "^9.1.2",
     "eslint": "^9.27.0",
     "globals": "^16.1.0",
     "ts-node": "^10.9.2",
