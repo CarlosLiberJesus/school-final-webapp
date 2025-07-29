@@ -1,6 +1,6 @@
 {
   "name": "school-final-webapp",
-  "version": "1.0.5",
+  "version": "2.0.1",
   "description": "Depois da aprendizagem do school-moodle-webapp tudo iniciou uma extrutura de micro serviços",
   "main": "server.js",
   "type": "module",
@@ -8,7 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "concurrently \"npm run mcp-server\" \"npm run agent\" \"npm run webapp\"",
     "mcp-server": "cd E:/MCPs/school-moodle-mcp && set PORT=3001 && node build/src/index.js",
-    "agent": "cd E:/MCPs/school-moodle-mcp && set PORT=3010 && node build/src/index.js",
+    "agent": "cd E:/MCPs/school-moodle-mcp && set PORT=3010 && node build/src/index.js --mode api",
     "webapp": "node server.js --port=3100"
   },
   "dependencies": {
